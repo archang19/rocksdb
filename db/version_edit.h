@@ -231,6 +231,9 @@ struct FileMetaData {
   // 0 means the information is not available.
   uint64_t oldest_ancester_time = kUnknownOldestAncesterTime;
 
+  // Timestamp of the earliest key. 0 means unknown.
+  uint64_t newest_key_time = kUnknownFileCreationTime;
+
   // Unix time when the SST file is created.
   uint64_t file_creation_time = kUnknownFileCreationTime;
 

@@ -913,6 +913,19 @@ bool Compaction::DoesInputReferenceBlobFiles() const {
   return false;
 }
 
+uint64_t Compaction::MaxInputFileNewestKeyTime() const {
+  uint64_t max_newest_key_time = std::numeric_limits<uint64_t>::min();
+  for (const auto& level_files : inputs_) {
+    for (const auto& file : level_files.files) {
+      uint64_t newest_key_time = file->newest_key_time;
+      if (newest_key_time != 0) {
+        max_newest_key_time = std::max(max_newest_key_time, newest_key_time);
+      }
+    }
+  }
+  return max_newest_key_time;
+}
+
 uint64_t Compaction::MinInputFileOldestAncesterTime(
     const InternalKey* start, const InternalKey* end) const {
   uint64_t min_oldest_ancester_time = std::numeric_limits<uint64_t>::max();
