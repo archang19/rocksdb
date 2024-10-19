@@ -401,6 +401,9 @@ class Compaction {
     return blob_garbage_collection_age_cutoff_;
   }
 
+  // Return max newest_key_time amont input files
+  uint64_t MaxInputFileNewestKeyTime() const;
+
   // start and end are sub compact range. Null if no boundary.
   // This is used to filter out some input files' ancester's time range.
   uint64_t MinInputFileOldestAncesterTime(const InternalKey* start,
