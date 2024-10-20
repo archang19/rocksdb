@@ -303,6 +303,8 @@ const std::string TablePropertiesNames::kCompressionOptions =
 const std::string TablePropertiesNames::kCreationTime = "rocksdb.creation.time";
 const std::string TablePropertiesNames::kOldestKeyTime =
     "rocksdb.oldest.key.time";
+const std::string TablePropertiesNames::kNewestKeyTime =
+    "rocksdb.newest.key.time";
 const std::string TablePropertiesNames::kFileCreationTime =
     "rocksdb.file.creation.time";
 const std::string TablePropertiesNames::kSlowCompressionEstimatedDataSize =
