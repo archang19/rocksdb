@@ -3257,10 +3257,14 @@ TEST_F(FilePrefetchBufferTest, SyncReadaheadStats) {
   // Simulate a seek of 4096 bytes at offset 0. Due to the readahead settings,
   // it will do a read of offset 0 and length - (4096 + 8192) 12288.
   Status s;
+  std::vector<std::pair<uint64_t, size_t>> buffer_info(1);
   ASSERT_TRUE(fpb.TryReadFromCache(IOOptions(), r.get(), 0, 4096, &result, &s));
   ASSERT_EQ(s, Status::OK());
   ASSERT_EQ(stats->getTickerCount(PREFETCH_HITS), 0);
   ASSERT_EQ(stats->getTickerCount(PREFETCH_BYTES_USEFUL), 0);
+  fpb.TEST_GetBufferOffsetandSize(buffer_info);
+  ASSERT_EQ(buffer_info[0].second, 4096 + 8192);
+  ASSERT_EQ(buffer_info[0].first, 0);
 
   // Simulate a block cache hit
   fpb.UpdateReadPattern(4096, 4096, false);
@@ -3271,12 +3275,18 @@ TEST_F(FilePrefetchBufferTest, SyncReadaheadStats) {
   ASSERT_EQ(s, Status::OK());
   ASSERT_EQ(stats->getTickerCount(PREFETCH_HITS), 0);
   ASSERT_EQ(stats->getTickerCount(PREFETCH_BYTES_USEFUL), 4096);
+  fpb.TEST_GetBufferOffsetandSize(buffer_info);
+  ASSERT_EQ(buffer_info[0].second, 8192 * 2);
+  ASSERT_EQ(buffer_info[0].first, 8192);
 
   ASSERT_TRUE(
       fpb.TryReadFromCache(IOOptions(), r.get(), 12288, 4096, &result, &s));
   ASSERT_EQ(s, Status::OK());
   ASSERT_EQ(stats->getAndResetTickerCount(PREFETCH_HITS), 1);
   ASSERT_EQ(stats->getAndResetTickerCount(PREFETCH_BYTES_USEFUL), 8192);
+  fpb.TEST_GetBufferOffsetandSize(buffer_info);
+  ASSERT_EQ(buffer_info[0].second, 8192 * 2);
+  ASSERT_EQ(buffer_info[0].first, 8192);
 
   // Now read some data with length doesn't align with aligment and it needs
   // prefetching. Read from 16000 with length 10000 (i.e. requested end offset -
@@ -3288,6 +3298,11 @@ TEST_F(FilePrefetchBufferTest, SyncReadaheadStats) {
   ASSERT_EQ(
       stats->getAndResetTickerCount(PREFETCH_BYTES_USEFUL),
       /* 24576(end offset of the buffer) - 16000(requested offset) =*/8576);
+  fpb.TEST_GetBufferOffsetandSize(buffer_info);
+  // Even if you try to readahead to offset 16000 + 10000 + 8192, there are only
+  // 32768 bytes in the original file
+  ASSERT_EQ(buffer_info[0].second, 32768 - 12288);
+  ASSERT_EQ(buffer_info[0].first, 12288); // Round down alignment from 16000
 }
 
 }  // namespace ROCKSDB_NAMESPACE
