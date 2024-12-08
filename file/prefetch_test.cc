@@ -3710,6 +3710,71 @@ TEST_P(FSBufferPrefetchTest, FSBufferPrefetchUnalignedReads) {
   }
 }
 
+TEST_P(FSBufferPrefetchTest, FSBufferPrefetchRandomized) {
+  std::string fname = "fs-buffer-prefetch-randomized";
+  Random rand(0);
+  std::string content = rand.RandomString(64 * 1024 * 1024);
+  Write(fname, content);
+
+  FileOptions opts;
+  std::unique_ptr<RandomAccessFileReader> r;
+  Read(fname, opts, &r);
+
+  std::shared_ptr<Statistics> stats = CreateDBStatistics();
+  ReadaheadParams readahead_params;
+  readahead_params.initial_readahead_size = 512;
+  readahead_params.max_readahead_size = 2048;
+  bool use_async_prefetch = GetParam();
+  if (use_async_prefetch) {
+    return;
+  }
+  size_t num_buffers = use_async_prefetch ? 2 : 1;
+  readahead_params.num_buffers = num_buffers;
+
+  FilePrefetchBuffer fpb(readahead_params, true, false, fs(), clock(),
+                         stats.get());
+
+  Slice result;
+  Status s;
+  std::vector<std::tuple<uint64_t, size_t, bool>> buffer_info(num_buffers);
+  std::pair<uint64_t, size_t> overlap_buffer_info;
+
+  std::cout << "main buffer offset: " << std::get<0>(buffer_info[0])
+            << " size: " << std::get<1>(buffer_info[0]) << std::endl;
+  std::cout << "overlap buffer offset: " << overlap_buffer_info.first
+            << " size: " << overlap_buffer_info.second << std::endl;
+
+  uint64_t offset = 0;
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<> distr(512, 32 * 1024);
+  std::uniform_int_distribution<> skip_distr(0, 64 * 1024);
+  for (int i = 0; i < 1000; i++) {
+    size_t skip = skip_distr(gen);
+    offset += skip;
+
+    size_t len = distr(gen);
+    std::cout << "i: " << i << " offset: " << offset << " len: " << len
+              << std::endl;
+    if (offset + len >= content.size()) {
+      break;
+    }
+    ASSERT_TRUE(
+        fpb.TryReadFromCache(IOOptions(), r.get(), offset, len, &result, &s));
+    ASSERT_EQ(strncmp(result.data(),
+                      content.substr(offset, offset + len).c_str(), len),
+              0);
+    fpb.TEST_GetOverlapBufferOffsetandSize(overlap_buffer_info);
+    fpb.TEST_GetBufferOffsetandSize(buffer_info);
+
+    std::cout << "main buffer offset: " << std::get<0>(buffer_info[0])
+              << " size: " << std::get<1>(buffer_info[0]) << std::endl;
+    std::cout << "overlap buffer offset: " << overlap_buffer_info.first
+              << " size: " << overlap_buffer_info.second << std::endl;
+    offset += len;
+  }
+}
+
 }  // namespace ROCKSDB_NAMESPACE
 
 int main(int argc, char** argv) {

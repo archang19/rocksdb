@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 
 #include "file/random_access_file_reader.h"
 #include "monitoring/histogram.h"
@@ -208,6 +209,8 @@ void FilePrefetchBuffer::CopyDataToOverlapBuffer(BufferInfo* src,
   if (length == 0) {
     return;
   }
+  std::cout << "CopyDataToOverlapBuffer: offset=" << offset
+            << " length=" << length << std::endl;
   assert(src->IsOffsetInBuffer(offset));
   uint64_t copy_offset = (offset - src->offset_);
   size_t copy_len = 0;
@@ -736,6 +739,9 @@ Status FilePrefetchBuffer::PrefetchInternal(const IOOptions& opts,
     }
   }
 
+  std::cout << "copy_to_overlap_buffer: " << copy_to_overlap_buffer
+            << std::endl;
+
   // Copy remaining requested bytes to overlap_buf_. No need to
   // update stats as data is prefetched during this call.
   if (copy_to_overlap_buffer && length > 0) {
@@ -856,6 +862,7 @@ bool FilePrefetchBuffer::TryReadFromCacheUntracked(
   if (copy_to_overlap_buffer) {
     buf = overlap_buf_;
   }
+  assert(buf->offset_ <= offset);
   uint64_t offset_in_buffer = offset - buf->offset_;
   *result = Slice(buf->buffer_.BufferStart() + offset_in_buffer, n);
   if (prefetched) {
