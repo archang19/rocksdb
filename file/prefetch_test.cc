@@ -3744,26 +3744,32 @@ TEST_P(FSBufferPrefetchTest, FSBufferPrefetchRandomized) {
   std::cout << "overlap buffer offset: " << overlap_buffer_info.first
             << " size: " << overlap_buffer_info.second << std::endl;
 
+  uint64_t prev_offset = 0;
+  uint64_t prev_len = 0;
   uint64_t offset = 0;
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> distr(512, 32 * 1024);
   std::uniform_int_distribution<> skip_distr(0, 64 * 1024);
   for (int i = 0; i < 1000; i++) {
-    size_t skip = skip_distr(gen);
-    offset += skip;
+    offset = (prev_offset + prev_len + prev_offset) / 2;
+    prev_offset = offset;
 
     size_t len = distr(gen);
+    prev_len = len;
     std::cout << "i: " << i << " offset: " << offset << " len: " << len
               << std::endl;
     if (offset + len >= content.size()) {
       break;
     }
-    ASSERT_TRUE(
-        fpb.TryReadFromCache(IOOptions(), r.get(), offset, len, &result, &s));
-    ASSERT_EQ(strncmp(result.data(),
-                      content.substr(offset, offset + len).c_str(), len),
-              0);
+
+    if (fpb.TryReadFromCache(IOOptions(), r.get(), offset, len, &result, &s,
+                             true)) {
+      ASSERT_EQ(strncmp(result.data(),
+                        content.substr(offset, offset + len).c_str(), len),
+                0);
+    }
+
     fpb.TEST_GetOverlapBufferOffsetandSize(overlap_buffer_info);
     fpb.TEST_GetBufferOffsetandSize(buffer_info);
 

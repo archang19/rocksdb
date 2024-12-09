@@ -209,8 +209,8 @@ void FilePrefetchBuffer::CopyDataToOverlapBuffer(BufferInfo* src,
   if (length == 0) {
     return;
   }
-  std::cout << "CopyDataToOverlapBuffer: offset=" << offset
-            << " length=" << length << std::endl;
+  // std::cout << "CopyDataToOverlapBuffer: offset=" << offset
+  //           << " length=" << length << std::endl;
   assert(src->IsOffsetInBuffer(offset));
   uint64_t copy_offset = (offset - src->offset_);
   size_t copy_len = 0;
@@ -739,8 +739,8 @@ Status FilePrefetchBuffer::PrefetchInternal(const IOOptions& opts,
     }
   }
 
-  std::cout << "copy_to_overlap_buffer: " << copy_to_overlap_buffer
-            << std::endl;
+  // std::cout << "copy_to_overlap_buffer: " << copy_to_overlap_buffer
+  //           << std::endl;
 
   // Copy remaining requested bytes to overlap_buf_. No need to
   // update stats as data is prefetched during this call.
@@ -861,6 +861,10 @@ bool FilePrefetchBuffer::TryReadFromCacheUntracked(
   buf = GetFirstBuffer();
   if (copy_to_overlap_buffer) {
     buf = overlap_buf_;
+  }
+  if (buf->offset_ <= offset) {
+    std::cout << "offset: " << offset << " buf->offset_: " << buf->offset_
+              << std::endl;
   }
   assert(buf->offset_ <= offset);
   uint64_t offset_in_buffer = offset - buf->offset_;
